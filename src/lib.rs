@@ -1,14 +1,14 @@
 //! Used for displaying petgraph graphs in jupyter using the evcxr rust engine.
 extern crate petgraph;
 use std::fmt::{self};
-use std::io::{Write};
+use std::io::Write;
 use std::process::{Command, Stdio};
 
 use base64;
 
 use crate::petgraph::visit::{GraphProp};
 use crate::petgraph::visit::{IntoEdgeReferences, IntoNodeReferences, NodeIndexable};
-use petgraph::dot::{Dot, Config};
+use petgraph::dot::{Config, Dot};
 
 /// Draw the contents of a dot file.
 /// ```rust
@@ -18,15 +18,15 @@ use petgraph::dot::{Dot, Config};
 /// 1 [label=\"b\"]\
 /// 0 -> 1 [label=\"a → b\"]\
 /// }";
-/// draw_dot(dot);
+/// draw_dot(dot, "Name".to_owned());
 /// ```
-pub fn draw_dot<D>(dot: D)
+pub fn draw_dot<D>(dot: D, name: String)
 where
     D: fmt::Display,
 {
     println!("EVCXR_BEGIN_CONTENT image/png");
     let mut child = Command::new("dot")
-        .args(&["-Tpng"])
+        .args(&["-Tpng", format!("-o{}.png", name).as_str()])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
@@ -37,7 +37,7 @@ where
         .unwrap()
         .write_fmt(format_args!("{}", dot))
         .expect("Writing failed.");
-    let output = child
+    child
         .wait_with_output()
         .expect("Failed to run dot is graphviz installed?");
     println!("{}", base64::encode(&output.stdout[..]));
@@ -54,30 +54,32 @@ where
 /// let a = g.add_node("a");
 /// let b = g.add_node("b");
 /// g.add_edge(a, b, "a to b");
-/// draw_graph(&g);
+/// draw_graph(&g, "Name".to_owned());
 /// ```
-pub fn draw_graph<G>(g: G)
+pub fn draw_graph<G>(g: G, name: String)
 where
     G: NodeIndexable + IntoNodeReferences + IntoEdgeReferences,
     G: GraphProp,
     G::NodeWeight: fmt::Display,
     G::EdgeWeight: fmt::Display,
 {
-    draw_dot(Dot::new(g));
+    draw_dot(Dot::new(g), name);
 }
-
 
 pub fn draw_graph_with_attr_getters<'a, G>(
     g: G,
     config: &'a [Config],
     get_edge_attributes: &'a dyn Fn(G, G::EdgeRef) -> String,
     get_node_attributes: &'a dyn Fn(G, G::NodeRef) -> String,
-)
-where
+    name: String,
+) where
     G: NodeIndexable + IntoNodeReferences + IntoEdgeReferences,
     G: GraphProp,
     G::NodeWeight: fmt::Display,
     G::EdgeWeight: fmt::Display,
 {
-    draw_dot(Dot::with_attr_getters(g, config, get_edge_attributes, get_node_attributes));
+    draw_dot(
+        Dot::with_attr_getters(g, config, get_edge_attributes, get_node_attributes),
+        name,
+    );
 }
